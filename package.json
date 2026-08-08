@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node lib/feed.test.ts"
+    "test": "node lib/feed.test.ts && node lib/recommend.test.ts"
   },
   "dependencies": {
     "next": "16.3.0",
