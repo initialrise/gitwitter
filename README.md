@@ -49,14 +49,17 @@ runs — which is precisely what stops it owning the feed.
 
 The grouping key differs by tab, because the subject differs:
 
-| Tab | Key | Reads as |
-|---|---|---|
-| Shipped | actor + repo | "adysec pushed 95 times to adysec/AVE" |
-| Discussed | actor + repo + issue/PR | "IsaacG on roc-test-runner#50 — commented ×2, reviewed" |
-| Discovered | repo + kind | "DFIB0879 and 16 others starred bbot" |
+| Tab | Key | Window | Reads as |
+|---|---|---|---|
+| Shipped | actor + repo | 6h gap | "adysec pushed 95 times to adysec/AVE" |
+| Discussed | actor + repo + issue/PR | 6h gap | "IsaacG on roc-test-runner#50 — commented ×2, reviewed" |
+| Discovered | repo | whole feed | "l00tcris and 2 others forked and starred TREVORspray" |
 
 Stars and forks fold by *repo* rather than by person, the way Twitter folds
-likes — 17 people starring one repo is one card, not 17.
+likes — 17 people starring one repo is one card, not 17. The gap window does
+**not** apply there: it models one person's working session, and strangers
+finding the same repo hours apart is the normal case, not a burst. Starring and
+forking count as the same interest, so someone who did both is listed once.
 
 **Buckets.** The three tabs map onto Twitter's own trichotomy:
 

@@ -91,17 +91,25 @@ export function buildCards(events: GhEvent[], gapMs = GAP_MS): Card[] {
 
     const subject = bucket === "discussed" ? subjectOf(e) : null;
 
-    // Stars and forks are about the repo, not the person — six people starring
-    // one repo is one card ("X and 5 others"), the way Twitter folds likes.
-    // Everywhere else the person is the subject, so they key on the actor.
+    // Stars and forks are about the repo, not the person — everyone who took
+    // an interest lands on one card ("X and 5 others"), the way Twitter folds
+    // likes. Elsewhere the person is the subject, so the key is the actor.
     const key =
       bucket === "discovered"
-        ? `${bucket}|${e.repo.name}|${e.type}`
+        ? `${bucket}|${e.repo.name}`
         : `${e.actor.login}|${e.repo.name}|${bucket}|${subject ?? ""}`;
 
     const prev = open.get(key);
 
-    if (prev && Date.parse(prev.oldest) - Date.parse(e.created_at) < gapMs) {
+    // The gap window models one person's working session, so it does not apply
+    // to a repo card: strangers finding the same repo hours apart is the
+    // normal case, not a burst, and splitting on it just shows the repo twice.
+    const continues =
+      prev &&
+      (bucket === "discovered" ||
+        Date.parse(prev.oldest) - Date.parse(e.created_at) < gapMs);
+
+    if (prev && continues) {
       prev.events.push(e);
       prev.count++;
       prev.oldest = e.created_at;

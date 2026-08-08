@@ -66,21 +66,22 @@ assert.equal(
 );
 
 // Stars and forks aggregate by repo, so one popular repo is one card.
-const stars = buckets.discovered.filter((c) => c.types[0] === "WatchEvent");
-const starEvents = events.filter((e) => e.type === "WatchEvent").length;
-assert.ok(
-  stars.length < starEvents,
-  `stars should fold by repo: ${starEvents} events, ${stars.length} cards`,
+assert.equal(
+  new Set(buckets.discovered.map((c) => c.repo)).size,
+  buckets.discovered.length,
+  "a repo must appear at most once in Discovered",
 );
-// Two bursts on the same repo hours apart stay separate — that is the gap
-// window doing its job — but nobody is listed twice on one card.
-for (const c of stars) {
+// Starring and forking the same repo is one interest, not two cards, and
+// someone who did both is listed once.
+for (const c of buckets.discovered) {
   assert.equal(new Set(c.actors.map((a) => a.login)).size, c.actors.length);
 }
+const both = buckets.discovered.find((c) => c.types.length > 1);
+assert.ok(both, "expected a repo that was both starred and forked");
+assert.match(describe(both!), /starred and forked|forked and starred/);
 const crowd = buckets.discovered.find((c) => c.actors.length > 1);
 assert.ok(crowd, "expected at least one repo starred by several people");
 assert.match(byline(crowd!), /and (\d+ others|\w+)$/);
-assert.equal(describe(crowd!), crowd!.types[0] === "ForkEvent" ? "forked" : "starred");
 assert.equal(crowd!.own, false);
 
 // Elsewhere the person stays the subject: never merge two people onto one card.
