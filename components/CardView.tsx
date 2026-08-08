@@ -1,4 +1,5 @@
 import type { Bucket, CardText } from "@/lib/feed";
+import type { TrendingRepo } from "@/lib/trending";
 
 export type ViewCard = {
   key: string;
@@ -12,6 +13,9 @@ export type ViewCard = {
   ago: string;
   verb: string;
   text?: CardText;
+  /** why this was recommended — "3 people starred, 1 forked" */
+  reason?: string;
+  language?: string;
 };
 
 export function CardView({ card }: { card: ViewCard }) {
@@ -92,11 +96,51 @@ export function CardView({ card }: { card: ViewCard }) {
             </ul>
           )}
 
-          <div className="mt-2 flex items-center gap-4 text-[13px] text-muted">
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted">
             {card.count > 1 && <span>{card.count} events</span>}
+            {card.language && <span>{card.language}</span>}
             {card.text?.stars != null && (
               <span className="text-star">★ {fmt(card.text.stars)}</span>
             )}
+            {card.reason && <span>{card.reason}</span>}
+          </div>
+        </div>
+      </a>
+    </li>
+  );
+}
+
+/** Trending has no social context — no actors, no verb, just the repo. */
+export function RepoRow({ repo }: { repo: TrendingRepo }) {
+  return (
+    <li className="border-b border-line transition-colors hover:bg-surface/40">
+      <a
+        href={repo.url}
+        target="_blank"
+        rel="noreferrer"
+        className="flex gap-3 px-4 py-3"
+      >
+        <img
+          src={repo.avatar}
+          alt=""
+          width={40}
+          height={40}
+          className="h-10 w-10 shrink-0 rounded-full bg-surface"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[15px] leading-5">
+            <span className="font-bold">{repo.owner}</span>
+            <span className="text-muted">/</span>
+            <span className="font-bold">{repo.repo.split("/")[1]}</span>
+          </p>
+          {repo.about && (
+            <p className="mt-0.5 text-[15px] leading-5 text-muted">
+              {repo.about}
+            </p>
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted">
+            <span className="text-star">★ {fmt(repo.stars)}</span>
+            {repo.language && <span>{repo.language}</span>}
           </div>
         </div>
       </a>

@@ -28,10 +28,13 @@ npm run dev       # http://localhost:3000
 npm test          # grouping self-check, no network
 ```
 
-There is no config, no `.env`, and no token in this repo. `gh` reads your token
-from the OS keyring and we shell out to it from a server component. That is also
-the seam to replace if this ever goes multi-user: `lib/github.ts` is the only
-file that knows how auth happens.
+There is no config, no `.env`, and no token in this repo. `gh auth token` is
+read once per process from the OS keyring and used for plain HTTP after that.
+`lib/github.ts` is the only file that knows how auth happens, so that is the
+one seam to replace if this ever goes multi-user.
+
+Cold load is ~5s (roughly 120 API calls, run in parallel), then ~0.2s from the
+in-process cache until you restart it.
 
 ## How it works
 
@@ -61,7 +64,7 @@ likes — 17 people starring one repo is one card, not 17. The gap window does
 finding the same repo hours apart is the normal case, not a burst. Starring and
 forking count as the same interest, so someone who did both is listed once.
 
-**Buckets.** The three tabs map onto Twitter's own trichotomy:
+**Buckets.** Three of the five tabs map onto Twitter's own trichotomy:
 
 | Tab | Twitter analogue | Events |
 |---|---|---|
@@ -70,7 +73,48 @@ forking count as the same interest, so someone who did both is listed once.
 | Discovered | likes / reposts | Watch, Fork |
 
 Repo ownership ("did they push to their own repo or contribute to someone
-else's") is a badge on the card rather than a fourth tab.
+else's") is a badge on the card rather than another tab.
+
+## For you
+
+GitHub has no public recommendations API. `/user/recommendations`,
+`/user/suggestions` and `/repositories/recommended` all 404, and the GraphQL
+schema exposes nothing beyond reviewer and list suggestions — github.com's own
+"For you" is internal.
+
+So this reproduces the *signal* rather than the endpoint, which is ordinary
+collaborative filtering: repos that people you follow are converging on, minus
+anything you have already starred. The entire input is the feed you already
+fetched; the only extra reads are your own stars.
+
+Acts are weighted by how much they cost the person — forking or opening a PR
+(3) says more than starring (2), which says more than pushing (1, often just
+their day job). Each person counts once, at the strongest thing they did.
+Score is `sum(weights) × √(people)`, so breadth of agreement beats depth: three
+people starring outranks two people forking. Bots, your own repos, and authors
+boosting their own work are all excluded.
+
+```
+225  ★108   JavaScript  Arcanum-Sec/wraith      22 people starred, 1 forked
+ 14  ★1.4k  Python      .../TREVORspray          2 forked, 2 starred
+ 12  ★357   Ruby        exercism/problem-specs   3 contributed to
+```
+
+## Trending
+
+Also no API — `/trending` and `/repositories/trending` 404, and the page itself
+is HTML. Its real metric is *star velocity*, which the search API cannot
+express at all.
+
+The approximation: repos created in the last 30 days with >50 stars, ranked by
+stars. Young and already popular is most of what trending means in practice.
+Unlike everything else here it is not personalised — it is the same list for
+everybody.
+
+This is the one tab that scrolls infinitely, because search paginates properly
+(2000+ matches). An `IntersectionObserver` fetches the next page 600px before
+the sentinel is visible, repeats are dropped as results shift under you, and it
+stops at 1000 results because that is where GitHub search stops.
 
 **Hydrate.** GitHub strips the events payloads, and this is the single biggest
 constraint on the UI:
@@ -107,8 +151,8 @@ one in the observed window, so the tab would usually be empty.
 absent from the firehose, not merely rare. Surfacing them would mean polling
 GraphQL per repo, which reintroduces the per-repo polling this design avoids.
 
-**No refresh button, no infinite scroll.** Reload the page; there are only ever
-~300 events. The footer says so.
+**No refresh button, and no infinite scroll outside Trending.** Reload the
+page; the feed tabs only ever hold ~300 events, and the footer says so.
 
 **Single dark theme.** It is a personal feed reader, not a product that needs
 to match anyone's OS.
