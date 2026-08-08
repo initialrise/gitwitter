@@ -1,5 +1,5 @@
-import { apiOrNull } from "./github";
-import type { Card, CardText } from "./feed";
+import { apiOrNull } from "./github.ts";
+import type { Card, CardText } from "./feed.ts";
 
 /**
  * GitHub strips the events API payloads: pushes carry no commit messages and
@@ -8,7 +8,8 @@ import type { Card, CardText } from "./feed";
  * 95 pushes cost a single request.
  */
 
-const CONCURRENCY = 8;
+// Plain HTTP now, so the ceiling is GitHub's rather than local process spawning.
+const CONCURRENCY = 16;
 
 export async function hydrate(cards: Card[]): Promise<Card[]> {
   const queue = [...cards];

@@ -37,15 +37,37 @@ export type GhEvent = {
 
 const cache = new Map<string, Promise<unknown>>();
 
+/**
+ * Ask `gh` for the token once per process, then use plain fetch. Spawning a
+ * subprocess per request cost ~250ms each and dominated page load; this keeps
+ * the property that matters — the token comes from the OS keyring at runtime
+ * and is never written to disk here — without paying for ~120 processes.
+ */
+let token: Promise<string> | undefined;
+
+function authToken(): Promise<string> {
+  token ??= run("gh", ["auth", "token"], { windowsHide: true }).then(
+    ({ stdout }) => stdout.trim(),
+  );
+  return token;
+}
+
 /** GET a REST path. Errors are the caller's problem — see `apiOrNull`. */
 export async function api<T>(path: string): Promise<T> {
   const hit = cache.get(path);
   if (hit) return hit as Promise<T>;
 
-  const p = run("gh", ["api", "-H", "Accept: application/vnd.github+json", path], {
-    maxBuffer: 32 * 1024 * 1024,
-    windowsHide: true,
-  }).then(({ stdout }) => JSON.parse(stdout) as T);
+  const p = authToken().then(async (t) => {
+    const res = await fetch(`https://api.github.com${path}`, {
+      headers: {
+        Authorization: `Bearer ${t}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "gitwitter",
+      },
+    });
+    if (!res.ok) throw new Error(`GitHub ${res.status} on ${path}`);
+    return (await res.json()) as T;
+  });
 
   cache.set(path, p);
   p.catch(() => cache.delete(path)); // don't cache failures

@@ -1,4 +1,4 @@
-import type { GhEvent } from "./github";
+import type { GhEvent } from "./github.ts";
 
 export type Bucket = "shipped" | "discussed" | "discovered";
 
@@ -184,11 +184,16 @@ export function describe(card: Card): string {
 }
 
 /** "IsaacG", "IsaacG and ageron", "IsaacG and 5 others" */
+export function bylineOf(actors: GhEvent["actor"][]): string {
+  const [first, second] = actors;
+  if (!first) return "";
+  if (actors.length === 1) return first.login;
+  if (actors.length === 2) return `${first.login} and ${second.login}`;
+  return `${first.login} and ${actors.length - 1} others`;
+}
+
 export function byline(card: Card): string {
-  const [first, second] = card.actors;
-  if (card.actors.length === 1) return first.login;
-  if (card.actors.length === 2) return `${first.login} and ${second.login}`;
-  return `${first.login} and ${card.actors.length - 1} others`;
+  return bylineOf(card.actors);
 }
 
 export function relative(iso: string, now = Date.now()): string {
