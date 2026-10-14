@@ -42,7 +42,7 @@ export function CardView({ card }: { card: ViewCard }) {
           ))}
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 wrap-anywhere">
           <p className="flex flex-wrap items-baseline gap-x-1.5 text-[15px] leading-5">
             <span className="font-bold hover:underline">{card.byline}</span>
             <span className="text-muted">
@@ -127,7 +127,7 @@ export function RepoRow({ repo }: { repo: TrendingRepo }) {
           height={40}
           className="h-10 w-10 shrink-0 rounded-full bg-surface"
         />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 wrap-anywhere">
           <p className="truncate text-[15px] leading-5">
             <span className="font-bold">{repo.owner}</span>
             <span className="text-muted">/</span>
