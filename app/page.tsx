@@ -15,25 +15,27 @@ import { trending } from "@/lib/trending";
 import { Feed } from "@/components/Feed";
 import type { ViewCard } from "@/components/CardView";
 
-// We shell out to `gh` on every request; there is nothing to prerender.
+// The feed is live per-viewer GitHub data; there is nothing to prerender.
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
   let me: string;
+  let events: Awaited<ReturnType<typeof receivedEvents>>;
   try {
     me = await viewer();
+    events = await receivedEvents(me);
   } catch {
     return <Setup />;
   }
 
-  const events = await receivedEvents(me);
   const now = Date.now();
 
   // Independent of each other, so do not make the user wait for them in turn.
   const [cards, recs, hot] = await Promise.all([
     hydrate(buildCards(events)),
     recommend(events, me),
-    trending(1, now).then((t) => t.items),
+    // Search is rate limited at 30/min; losing Trending must not lose the feed.
+    trending(1, now).then((t) => t.items).catch(() => []),
   ]);
 
   const byBucket = group(cards);

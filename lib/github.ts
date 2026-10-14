@@ -35,7 +35,12 @@ export type GhEvent = {
   };
 };
 
-const cache = new Map<string, Promise<unknown>>();
+/**
+ * Short enough that a reload shows new activity, long enough that one page
+ * load's ~120 calls (and repeat paths within it) share results.
+ */
+export const TTL_MS = 60_000;
+const cache = new Map<string, { at: number; p: Promise<unknown> }>();
 
 /**
  * Ask `gh` for the token once per process, then use plain fetch. Spawning a
@@ -54,8 +59,10 @@ function authToken(): Promise<string> {
 
 /** GET a REST path. Errors are the caller's problem — see `apiOrNull`. */
 export async function api<T>(path: string): Promise<T> {
+  const now = Date.now();
+  for (const [k, v] of cache) if (now - v.at >= TTL_MS) cache.delete(k);
   const hit = cache.get(path);
-  if (hit) return hit as Promise<T>;
+  if (hit) return hit.p as Promise<T>;
 
   const p = authToken().then(async (t) => {
     const res = await fetch(`https://api.github.com${path}`, {
@@ -65,12 +72,16 @@ export async function api<T>(path: string): Promise<T> {
         "User-Agent": "gitwitter",
       },
     });
+    // Revoked or rotated: ask `gh` again next time, so `gh auth login` fixes it without a restart.
+    if (res.status === 401) token = undefined;
     if (!res.ok) throw new Error(`GitHub ${res.status} on ${path}`);
     return (await res.json()) as T;
   });
 
-  cache.set(path, p);
-  p.catch(() => cache.delete(path)); // don't cache failures
+  const entry = { at: now, p };
+  cache.set(path, entry);
+  // don't cache failures (but don't evict a newer entry for the same path)
+  p.catch(() => cache.get(path) === entry && cache.delete(path));
   return p;
 }
 
@@ -100,6 +111,10 @@ export async function receivedEvents(user: string): Promise<GhEvent[]> {
       ),
     ),
   );
+  // One dead page is tolerable; all three is GitHub being down, not a quiet feed.
+  if (pages.every((p) => p === null)) {
+    throw new Error("could not read received_events");
+  }
   return pages
     .flatMap((p) => p ?? [])
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
