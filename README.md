@@ -3,29 +3,41 @@
 Your GitHub following feed, read like Twitter — without the one account that
 floods it.
 
+<p>
+  <img src="docs/for-you.png" alt="The For you tab: repos that several people you follow starred, forked or contributed to" width="400">
+  <img src="docs/shipped.png" alt="The Shipped tab: pushes and releases, with commit messages filled in" width="400">
+</p>
+
 GitHub's following feed is reverse-chronological and unweighted, so a single
 prolific account can own entire pages of it. In the window this was built
 against, one account produced **96 of 299 events**, all pushes to one repo,
 arriving in bursts that swallowed whole pages.
 
-gitwitter collapses that account into **one card** and sorts the rest into three
-tabs.
+gitwitter collapses each burst into **one card** and sorts the feed into tabs:
+
+| Tab | Shows |
+|---|---|
+| **For you** | Repos that several people you follow are converging on |
+| **Discussed** | Issues, PRs, reviews and comments |
+| **Shipped** | Pushes, releases and new repos, with commit messages filled in |
+| **Discovered** | Stars and forks, folded by repo |
+| **Trending** | Young repos gaining stars fast, for everyone (infinite scroll) |
 
 ```
-299 events  →  111 cards
-              shipped 2 · discussed 77 · discovered 32
+299 events  →  100 cards
+              shipped 2 · discussed 77 · discovered 21
               the noisy account: 96 events → 2 cards
 ```
 
 ## Running it
 
-Requires the [`gh` CLI](https://cli.github.com/), logged in:
+Requires Node 22.18+ and the [`gh` CLI](https://cli.github.com/), logged in:
 
 ```bash
 gh auth login     # if you haven't
 npm install
 npm run dev       # http://localhost:3000
-npm test          # grouping self-check, no network
+npm test          # self-checks, no network
 ```
 
 There is no config, no `.env`, and no token in this repo. `gh auth token` is
@@ -33,8 +45,9 @@ read once per process from the OS keyring and used for plain HTTP after that.
 `lib/github.ts` is the only file that knows how auth happens, so that is the
 one seam to replace if this ever goes multi-user.
 
-Cold load is ~5s (roughly 120 API calls, run in parallel), then ~0.2s from the
-in-process cache until you restart it.
+Cold load is ~5s (roughly 120 API calls, run in parallel). Responses are cached
+in-process for 60s, so a reload within that window is near-instant and a later
+one picks up new activity.
 
 ## How it works
 
@@ -156,3 +169,7 @@ page; the feed tabs only ever hold ~300 events, and the footer says so.
 
 **Single dark theme.** It is a personal feed reader, not a product that needs
 to match anyone's OS.
+
+## License
+
+[MIT](LICENSE)
